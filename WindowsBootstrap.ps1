@@ -50,7 +50,6 @@ function Disable-InternetExplorerESC {
     Write-Host "IE Enhanced Security Configuration (ESC) has been disabled." -ForegroundColor Green
 }
 
-
 function Enable-InternetExplorerESC {
     $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
     $UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
@@ -59,6 +58,7 @@ function Enable-InternetExplorerESC {
     Stop-Process -Name Explorer
     Write-Host "IE Enhanced Security Configuration (ESC) has been enabled." -ForegroundColor Green
 }
+
 function Disable-UserAccessControl {
     Set-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Value 00000000
     Write-Host "User Access Control (UAC) has been disabled." -ForegroundColor Green    
@@ -165,6 +165,7 @@ function Install-consul {
   $path = [System.Environment]::GetEnvironmentVariable("Path", "User")
   [System.Environment]::SetEnvironmentVariable("Path", $path + "C:\Consul\bin;", "User")
 }
+
 function Generate-NomadConfig {
 @"
   datacenter = `"dc1`"
@@ -240,7 +241,6 @@ function Install-nomad {
   [System.Environment]::SetEnvironmentVariable("NOMAD_ADDR", "http://${global:IP}:4646", "User")
 }
 
-
 function Generate-VaultConfig {
 @"
   storage "consul" {
@@ -287,6 +287,12 @@ function Install-vault {
   [System.Environment]::SetEnvironmentVariable("Path", $path + "C:\Vault\bin;", "User")
 }
 
+function Set-VirtualTerminalLevel {
+  # This allows the Command Prompt window to properly render
+  # the ANSI control sequences for the colors and to not leave
+  # poop on the screen
+  reg add "HKEY_CURRENT_USER\Console" /v VirtualTerminalLevel /t REG_DWORD /d 1 /f
+}
 
 function Install-Docker {
   Write-Host "Installing Docker...  (this will reboot the node)" -ForegroundColor Green
@@ -326,7 +332,7 @@ Generate-NomadConfig
 Generate-NomadDevConfig
 Install-vault
 Generate-VaultConfig
-
+Set-VirtualTerminalLevel
 
 ### I have Install-docker commented out because I need to
 ### change this to download Docker CE and install the MSI.
