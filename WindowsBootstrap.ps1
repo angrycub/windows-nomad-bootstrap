@@ -1,11 +1,13 @@
 
-$CONSUL_ADDR_LIST = 
-$CONSUL_SERVICE_USER_NAME = ".\Administrator"
-$CONSUL_SERVICE_USER_PASS = "«YOUR_ADMIN_PASSWORD»"
-$NOMAD_SERVICE_USER_NAME = $CONSUL_SERVICE_USER_NAME
-$NOMAD_SERVICE_USER_PASS = $CONSUL_SERVICE_USER_PASS
-$NOMAD_VERSION= "0.8.4"
-$CONSUL_VERSION = "1.0.2"
+${CONSUL_ADDR_LIST} = "[]"
+${CONSUL_SERVICE_USER_NAME} = ".\Administrator"
+${CONSUL_SERVICE_USER_PASS} = "«YOUR_ADMIN_PASSWORD»"
+${NOMAD_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
+${NOMAD_SERVICE_USER_PASS} = ${CONSUL_SERVICE_USER_PASS}
+
+${NOMAD_VERSION} = "0.8.4"
+${CONSUL_VERSION} = "1.0.2"
+${VAULT_VERSION} = "0.10.3"
 
 $global:IP = $null     #  This gets set once the function exists. Just here for documentation sake.
 
@@ -94,16 +96,32 @@ function Install-nssm {
 function Generate-ConsulConfig {
 @"
   {
-    "retry_join": ["10.0.0.215","10.0.0.108","10.0.0.220"],
-    "bind_addr": "$global:IP",
-    "client_addr": "0.0.0.0",
-    "datacenter": "dc1",
-    "data_dir": "C:\\Consul\\data",
-    "log_level": "DEBUG",
-    "node_name": "$env:computername",
-    "watches": [ ]
+    `"bind_addr`": `"${global:IP}`",
+    `"client_addr`": `"0.0.0.0`",
+    `"datacenter`": `"dc1`",
+    `"data_dir`": `"C:\\Consul\\data`",
+    `"log_level`": `"DEBUG`",
+    `"node_name`": "${env:computername}`",
+    `"watches`": [ ]
+    `"bootstrap_expect`": 1
+    `"server`": true
   }
 "@ | Out-File -Encoding ASCII -FilePath C:\Consul\config\consul.json
+}
+
+function Generate-ConsulLabConfig {
+@"
+  {
+    `"retry_join`": ${CONSUL_ADDR_LIST},
+    `"bind_addr`": `"${global:IP}`",
+    `"client_addr`": `"0.0.0.0`",
+    `"datacenter`": `"dc1`",
+    `"data_dir`": `"C:\\Consul\\lab\\data`",
+    `"log_level`": `"DEBUG`",
+    `"node_name`": "${env:computername}`",
+    `"watches`": [ ]
+  }
+"@ | Out-File -Encoding ASCII -FilePath C:\Consul\lab\config\consul.json
 }
 
 function Install-consul {
@@ -112,11 +130,13 @@ function Install-consul {
   mkdir c:\Consul\data -ErrorAction SilentlyContinue;
   mkdir c:\Consul\logs -ErrorAction SilentlyContinue;
   mkdir c:\Consul\config -ErrorAction SilentlyContinue;
-  wget.exe -q --no-check-certificate  https://releases.hashicorp.com/consul/1.0.2/consul_1.0.2_windows_amd64.zip
-  Unzip .\consul_1.0.2_windows_amd64.zip
-  copy .\consul_1.0.2_windows_amd64\consul.exe C:\Consul\bin
-  erase .\consul_1.0.2_windows_amd64.zip
-  erase .\consul_1.0.2_windows_amd64 -Recurse
+  wget.exe -q --no-check-certificate  https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_windows_amd64.zip
+  Unzip .\consul_${CONSUL_VERSION}_windows_amd64.zip
+  copy .\consul_${CONSUL_VERSION}_windows_amd64\consul.exe C:\Consul\bin\consul-${CONSUL_VERSION}.exe
+  erase .\consul_${CONSUL_VERSION}_windows_amd64.zip
+  erase .\consul_${CONSUL_VERSION}_windows_amd64 -Recurse
+  New-Item -Path C:\Consul\bin\consul.exe -ItemType SymbolicLink -Value C:\Consul\bin\consul_${CONSUL_VERSION}.exe
+
   Write-Host "   Creating Consul Service..." -ForegroundColor Green
   nssm install Consul C:\Consul\bin\consul.exe agent --config-dir="C:\\Consul\\config"
   nssm set Consul AppDirectory C:\Consul
@@ -126,11 +146,25 @@ function Install-consul {
   nssm set Consul AppStdout C:\Consul\logs\consul.log
   nssm set Consul AppStderr C:\Consul\logs\consul.log
   nssm set Consul AppRotateFiles 1
+
+  Write-Host "   Creating Consul Lab Service..." -ForegroundColor Green
+  mkdir c:\Consul\lab -ErrorAction SilentlyContinue;
+  mkdir c:\Consul\lab\data -ErrorAction SilentlyContinue;
+  mkdir c:\Consul\lab\logs -ErrorAction SilentlyContinue;
+  mkdir c:\Consul\lab\config -ErrorAction SilentlyContinue;
+  nssm install Consul C:\Consul\bin\consul.exe agent --config="C:\\Consul\\lab\\config"
+  nssm set Consul-Lab AppDirectory C:\Consul\Lab
+  nssm set Consul-Lab Description Hashicorp Consul - Lab Agent
+  nssm set Consul-Lab Start SERVICE_AUTO_START
+  nssm set Consul-Lab ObjectName ${CONSUL_SERVICE_USER_NAME} ${CONSUL_SERVICE_USER_PASS}
+  nssm set Consul-Lab AppStdout C:\Consul\lab\logs\consul.log
+  nssm set Consul-Lab AppStderr C:\Consul\lab\logs\consul.log
+  nssm set Consul-Lab AppRotateFiles 1
+
   Write-Host "   Adding Consul to Path..." -ForegroundColor Green
   $path = [System.Environment]::GetEnvironmentVariable("Path", "User")
   [System.Environment]::SetEnvironmentVariable("Path", $path + "C:\Consul\bin;", "User")
 }
-
 function Generate-NomadConfig {
 @"
   datacenter = `"dc1`"
@@ -142,7 +176,25 @@ function Generate-NomadConfig {
     }
     enabled = true
   }
+  server {
+    enabled = true
+    bootstrap_expect = 1
+  }
 "@ | Out-File -Encoding ASCII -FilePath C:\Nomad\config\nomad.hcl
+}
+
+function Generate-NomadLabConfig {
+@"
+  datacenter = `"dc1`"
+  data_dir = `"C:\\Nomad\\lab\\data`"
+  bind_addr = `"$global:IP`"
+  client {
+    options {
+      `"driver.raw_exec.enable`" = `"1`"
+    }
+    enabled = true
+  }
+"@ | Out-File -Encoding ASCII -FilePath C:\Nomad\lab\config\nomad.hcl
 }
 
 function Install-nomad {
@@ -151,27 +203,90 @@ function Install-nomad {
   mkdir c:\Nomad\data -ErrorAction SilentlyContinue;
   mkdir c:\Nomad\logs -ErrorAction SilentlyContinue;
   mkdir c:\Nomad\config -ErrorAction SilentlyContinue;
-  wget.exe -q --no-check-certificate https://releases.hashicorp.com/nomad/0.8.3/nomad_0.8.3_windows_amd64.zip
-  Unzip .\nomad_0.8.3_windows_amd64.zip
-  copy .\nomad_0.8.3_windows_amd64\nomad.exe C:\Nomad\bin\nomad_0.8.3.exe
-  erase .\nomad_0.8.3_windows_amd64.zip
-  erase .\nomad_0.8.3_windows_amd64 -Recurse
-  New-Item -Path C:\Nomad\bin\nomad.exe -ItemType SymbolicLink -Value C:\Nomad\bin\nomad_0.8.3.exe
+  wget.exe -q --no-check-certificate https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip
+  Unzip .\nomad_${NOMAD_VERSION}_windows_amd64.zip
+  copy .\nomad_${NOMAD_VERSION}_windows_amd64\nomad.exe C:\Nomad\bin\nomad_${NOMAD_VERSION}.exe
+  erase .\nomad_${NOMAD_VERSION}_windows_amd64.zip
+  erase .\nomad_${NOMAD_VERSION}_windows_amd64 -Recurse
+  New-Item -Path C:\Nomad\bin\nomad.exe -ItemType SymbolicLink -Value C:\Nomad\bin\nomad_${NOMAD_VERSION}.exe
   Write-Host "   Creating Nomad Service..." -ForegroundColor Green
   nssm install Nomad C:\Nomad\bin\nomad.exe agent --config="C:\\Nomad\\config"
   nssm set Nomad AppDirectory C:\Nomad
   nssm set Nomad Description Hashicorp Nomad
   nssm set Nomad DependOnService Consul
   nssm set Nomad Start SERVICE_AUTO_START
-  nssm set Nomad ObjectName $NOMAD_SERVICE_USER_NAME $NOMAD_SERVICE_USER_PASS
+  nssm set Nomad ObjectName ${NOMAD_SERVICE_USER_NAME} ${NOMAD_SERVICE_USER_PASS}
   nssm set Nomad AppStdout C:\Nomad\logs\nomad.log
   nssm set Nomad AppStderr C:\Nomad\logs\nomad.log
   nssm set Nomad AppRotateFiles 1
+
+  Write-Host "   Creating Nomad Lab Service..." -ForegroundColor Green
+  mkdir c:\Nomad\lab -ErrorAction SilentlyContinue;
+  mkdir c:\Nomad\lab\data -ErrorAction SilentlyContinue;
+  mkdir c:\Nomad\lab\logs -ErrorAction SilentlyContinue;
+  mkdir c:\Nomad\lab\config -ErrorAction SilentlyContinue;
+  nssm install Nomad C:\Nomad\bin\nomad.exe agent --config="C:\\Nomad\\lab\\config"
+  nssm set Nomad-Lab AppDirectory C:\Nomad\Lab
+  nssm set Nomad-Lab Description Hashicorp Nomad - Lab Agent
+  nssm set Nomad-Lab Start SERVICE_DEMAND_START
+  nssm set Nomad-Lab ObjectName ${NOMAD_SERVICE_USER_NAME} ${NOMAD_SERVICE_USER_PASS}
+  nssm set Nomad-Lab AppStdout C:\Nomad\lab\logs\nomad.log
+  nssm set Nomad-Lab AppStderr C:\Nomad\lab\logs\nomad.log
+  nssm set Nomad-Lab AppRotateFiles 1
+
   Write-Host "   Adding Nomad to Path..." -ForegroundColor Green
   $path = [System.Environment]::GetEnvironmentVariable("Path", "User")
   [System.Environment]::SetEnvironmentVariable("Path", $path + "C:\Nomad\bin;", "User")
   [System.Environment]::SetEnvironmentVariable("NOMAD_ADDR", "http://${global:IP}:4646", "User")
 }
+
+
+function Generate-VaultConfig {
+@"
+  storage "consul" {
+    address = "127.0.0.1:8500"
+    path    = "vault/"
+  }
+
+  listener "tcp" {
+    address     = "0.0.0.0:8200"
+    tls_disable = 1
+  }
+
+  ui=true
+  cluster_name="vault_dc1"
+"@ | Out-File -Encoding ASCII -FilePath C:\Vault\config\vault.hcl
+}
+
+function Install-vault {
+  Write-Host "Installing Vault..." -ForegroundColor Green
+  mkdir C:\Vault\bin -ErrorAction SilentlyContinue;
+  mkdir c:\Vault\data -ErrorAction SilentlyContinue;
+  mkdir c:\Vault\logs -ErrorAction SilentlyContinue;
+  mkdir c:\Vault\config -ErrorAction SilentlyContinue;
+  wget.exe -q --no-check-certificate  https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_windows_amd64.zip
+  Unzip .\vault_${VAULT_VERSION}_windows_amd64.zip
+  copy .\vault_${VAULT_VERSION}_windows_amd64\vault.exe C:\Vault\bin\vault-${VAULT_VERSION}.exe
+  erase .\vault_${VAULT_VERSION}_windows_amd64.zip
+  erase .\vault_${VAULT_VERSION}_windows_amd64 -Recurse
+  New-Item -Path C:\Vault\bin\vault.exe -ItemType SymbolicLink -Value C:\Vault\bin\vault_${VAULT_VERSION}.exe
+
+  Write-Host "   Creating Vault Service..." -ForegroundColor Green
+  nssm install Vault C:\Vault\bin\vault.exe agent --config-dir="C:\\Vault\\config"
+  nssm set Vault AppDirectory C:\Vault
+  nssm set Vault Description Hashicorp Vault
+  nssm set Nomad DependOnService Consul
+  nssm set Vault Start SERVICE_AUTO_START
+  nssm set Vault ObjectName $VAULT_SERVICE_USER_NAME $VAULT_SERVICE_USER_PASS
+  nssm set Vault AppStdout C:\Vault\logs\vault.log
+  nssm set Vault AppStderr C:\Vault\logs\vault.log
+  nssm set Vault AppRotateFiles 1
+
+  Write-Host "   Adding Vault to Path..." -ForegroundColor Green
+  $path = [System.Environment]::GetEnvironmentVariable("Path", "User")
+  [System.Environment]::SetEnvironmentVariable("Path", $path + "C:\Vault\bin;", "User")
+}
+
 
 function Install-Docker {
   Write-Host "Installing Docker...  (this will reboot the node)" -ForegroundColor Green
@@ -184,6 +299,20 @@ function Install-Docker {
   Restart-Computer -Force
 }
 
+function Install-Sublime {
+  Write-Host "Installing Sublime Text 3..." -ForegroundColor Green
+  wget.exe -q --no-check-certificate https://download.sublimetext.com/Sublime%20Text%20Build%203176%20x64%20Setup.exe
+  Start-Process -FilePath '.\Sublime Text Build 3176 x64 Setup.exe' -ArgumentList "/SILENT" -NoNewWindow -Wait
+  erase ".\Sublime Text Build 3176 x64 Setup.exe"
+}
+
+function Install-Chrome {
+  Write-Host "Installing Google Chrome..." -ForegroundColor Green
+  wget.exe -q --no-check-certificate https://download.sublimetext.com/Sublime%20Text%20Build%203176%20x64%20Setup.exe
+  Start-Process -FilePath '.\Sublime Text Build 3176 x64 Setup.exe' -ArgumentList "/SILENT" -NoNewWindow -Wait
+  erase ".\Sublime Text Build 3176 x64 Setup.exe"
+}
+
 clear
 
 Disable-InternetExplorerESC
@@ -194,15 +323,29 @@ Install-consul
 Generate-ConsulConfig
 Install-nomad
 Generate-NomadConfig
+Generate-NomadDevConfig
+Install-vault
+Generate-VaultConfig
+
 
 ### I have Install-docker commented out because I need to
 ### change this to download Docker CE and install the MSI.
 ### The current implementation will work, it just loads the
 ### Windows container implementation
 
-#Install-docker
+# Install-docker
+# install hyper-v
 
 
+### Things to (optionally) add:
+# Google Chrome
+## Sublime Text 3
+# https://download.sublimetext.com/Sublime%20Text%20Build%203176%20x64%20Setup.exe
+
+# Git
+# Golang
+# GnuTools
+# Vim
 
 
 ### $env:PATH="${env:PATH}C:\go\bin;C:\Users\Administrator\go\bin;C:\Program Files` (x86)\GnuWin32\bin"
