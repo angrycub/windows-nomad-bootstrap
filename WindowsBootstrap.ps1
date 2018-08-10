@@ -341,7 +341,7 @@ function Install-Chrome {
 
 clear
 
-# Disable-InternetExplorerESC
+Disable-InternetExplorerESC
 Enable-RemoteDesktop 
 Install-wget
 Install-nssm
