@@ -1,9 +1,11 @@
 
 ${CONSUL_ADDR_LIST} = "[]"
-${CONSUL_SERVICE_USER_NAME} = ".\Administrator"
-${CONSUL_SERVICE_USER_PASS} = "«YOUR_ADMIN_PASSWORD»"
+${CONSUL_SERVICE_USER_NAME} = "${env:serviceUser}"
+${CONSUL_SERVICE_USER_PASS} = "${env:servicePass}"
 ${NOMAD_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
 ${NOMAD_SERVICE_USER_PASS} = ${CONSUL_SERVICE_USER_PASS}
+${VAULT_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
+${VAULT_SERVICE_USER_PASS} = ${CONSUL_SERVICE_USER_PASS}
 
 ${NOMAD_VERSION} = "0.8.4"
 ${CONSUL_VERSION} = "1.0.2"
@@ -79,9 +81,11 @@ $global:IP = Get-DefaultIPAddress
 
 function Install-wget {
   Write-Host "Installing wget..." -ForegroundColor Green
-  $client = New-Object System.Net.WebClient;
-  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;
-  $client.DownloadFile("https://eternallybored.org/misc/wget/1.19.4/64/wget.exe","c:\windows\system32\wget.exe")
+  if (!(Test-Path "c:\windows\system32\wget.exe")) {
+    $client = New-Object System.Net.WebClient;
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;
+    $client.DownloadFile("https://eternallybored.org/misc/wget/1.19.4/64/wget.exe","c:\windows\system32\wget.exe")
+  }
 }
 
 function Install-nssm {
@@ -124,6 +128,14 @@ function Generate-ConsulLabConfig {
 "@ | Out-File -Encoding ASCII -FilePath C:\Consul\lab\config\consul.json
 }
 
+
+function MaybeRemoveSymlink ($fileName) {
+  if (Test-Path $fileName) {
+    Remove-Item -path $fileName
+  }  
+}
+
+
 function Install-consul {
   Write-Host "Installing Consul..." -ForegroundColor Green
   mkdir C:\Consul\bin -ErrorAction SilentlyContinue;
@@ -132,11 +144,14 @@ function Install-consul {
   mkdir c:\Consul\config -ErrorAction SilentlyContinue;
   wget.exe -q --no-check-certificate  https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_windows_amd64.zip
   Unzip .\consul_${CONSUL_VERSION}_windows_amd64.zip
-  copy .\consul_${CONSUL_VERSION}_windows_amd64\consul.exe C:\Consul\bin\consul-${CONSUL_VERSION}.exe
+  copy .\consul_${CONSUL_VERSION}_windows_amd64\consul.exe C:\Consul\bin\consul_${CONSUL_VERSION}.exe
   erase .\consul_${CONSUL_VERSION}_windows_amd64.zip
   erase .\consul_${CONSUL_VERSION}_windows_amd64 -Recurse
+  
+  MaybeRemoveSymlink C:\Consul\bin\consul.exe
+  
   New-Item -Path C:\Consul\bin\consul.exe -ItemType SymbolicLink -Value C:\Consul\bin\consul_${CONSUL_VERSION}.exe
-
+  
   Write-Host "   Creating Consul Service..." -ForegroundColor Green
   nssm install Consul C:\Consul\bin\consul.exe agent --config-dir="C:\\Consul\\config"
   nssm set Consul AppDirectory C:\Consul
@@ -152,7 +167,7 @@ function Install-consul {
   mkdir c:\Consul\lab\data -ErrorAction SilentlyContinue;
   mkdir c:\Consul\lab\logs -ErrorAction SilentlyContinue;
   mkdir c:\Consul\lab\config -ErrorAction SilentlyContinue;
-  nssm install Consul C:\Consul\bin\consul.exe agent --config="C:\\Consul\\lab\\config"
+  nssm install Consul-Lab C:\Consul\bin\consul.exe agent --config="C:\\Consul\\lab\\config"
   nssm set Consul-Lab AppDirectory C:\Consul\Lab
   nssm set Consul-Lab Description Hashicorp Consul - Lab Agent
   nssm set Consul-Lab Start SERVICE_AUTO_START
@@ -209,6 +224,9 @@ function Install-nomad {
   copy .\nomad_${NOMAD_VERSION}_windows_amd64\nomad.exe C:\Nomad\bin\nomad_${NOMAD_VERSION}.exe
   erase .\nomad_${NOMAD_VERSION}_windows_amd64.zip
   erase .\nomad_${NOMAD_VERSION}_windows_amd64 -Recurse
+  
+  MaybeRemoveSymlink C:\Nomad\bin\nomad.exe
+  
   New-Item -Path C:\Nomad\bin\nomad.exe -ItemType SymbolicLink -Value C:\Nomad\bin\nomad_${NOMAD_VERSION}.exe
   Write-Host "   Creating Nomad Service..." -ForegroundColor Green
   nssm install Nomad C:\Nomad\bin\nomad.exe agent --config="C:\\Nomad\\config"
@@ -226,7 +244,7 @@ function Install-nomad {
   mkdir c:\Nomad\lab\data -ErrorAction SilentlyContinue;
   mkdir c:\Nomad\lab\logs -ErrorAction SilentlyContinue;
   mkdir c:\Nomad\lab\config -ErrorAction SilentlyContinue;
-  nssm install Nomad C:\Nomad\bin\nomad.exe agent --config="C:\\Nomad\\lab\\config"
+  nssm install Nomad-Lab C:\Nomad\bin\nomad.exe agent --config="C:\\Nomad\\lab\\config"
   nssm set Nomad-Lab AppDirectory C:\Nomad\Lab
   nssm set Nomad-Lab Description Hashicorp Nomad - Lab Agent
   nssm set Nomad-Lab Start SERVICE_DEMAND_START
@@ -266,16 +284,18 @@ function Install-vault {
   mkdir c:\Vault\config -ErrorAction SilentlyContinue;
   wget.exe -q --no-check-certificate  https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_windows_amd64.zip
   Unzip .\vault_${VAULT_VERSION}_windows_amd64.zip
-  copy .\vault_${VAULT_VERSION}_windows_amd64\vault.exe C:\Vault\bin\vault-${VAULT_VERSION}.exe
+  copy .\vault_${VAULT_VERSION}_windows_amd64\vault.exe C:\Vault\bin\vault_${VAULT_VERSION}.exe
   erase .\vault_${VAULT_VERSION}_windows_amd64.zip
   erase .\vault_${VAULT_VERSION}_windows_amd64 -Recurse
+  
+  MaybeRemoveSymlink C:\Vault\bin\vault.exe
+  
   New-Item -Path C:\Vault\bin\vault.exe -ItemType SymbolicLink -Value C:\Vault\bin\vault_${VAULT_VERSION}.exe
-
   Write-Host "   Creating Vault Service..." -ForegroundColor Green
   nssm install Vault C:\Vault\bin\vault.exe agent --config-dir="C:\\Vault\\config"
   nssm set Vault AppDirectory C:\Vault
   nssm set Vault Description Hashicorp Vault
-  nssm set Nomad DependOnService Consul
+  nssm set Vault DependOnService Consul
   nssm set Vault Start SERVICE_AUTO_START
   nssm set Vault ObjectName $VAULT_SERVICE_USER_NAME $VAULT_SERVICE_USER_PASS
   nssm set Vault AppStdout C:\Vault\logs\vault.log
@@ -321,7 +341,7 @@ function Install-Chrome {
 
 clear
 
-Disable-InternetExplorerESC
+# Disable-InternetExplorerESC
 Enable-RemoteDesktop 
 Install-wget
 Install-nssm
@@ -329,7 +349,7 @@ Install-consul
 Generate-ConsulConfig
 Install-nomad
 Generate-NomadConfig
-Generate-NomadDevConfig
+Generate-NomadLabConfig
 Install-vault
 Generate-VaultConfig
 Set-VirtualTerminalLevel
