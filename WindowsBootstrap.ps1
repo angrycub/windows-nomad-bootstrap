@@ -108,7 +108,8 @@ function Generate-ConsulConfig {
     `"node_name`": "${env:computername}`",
     `"watches`": [ ],
     `"bootstrap_expect`": 1,
-    `"server`": true
+    `"server`": true,
+    `"ui`": true
   }
 "@ | Out-File -Encoding ASCII -FilePath C:\Consul\config\consul.json
 }
