@@ -106,8 +106,8 @@ function Generate-ConsulConfig {
     `"data_dir`": `"C:\\Consul\\data`",
     `"log_level`": `"DEBUG`",
     `"node_name`": "${env:computername}`",
-    `"watches`": [ ]
-    `"bootstrap_expect`": 1
+    `"watches`": [ ],
+    `"bootstrap_expect`": 1,
     `"server`": true
   }
 "@ | Out-File -Encoding ASCII -FilePath C:\Consul\config\consul.json
