@@ -1,4 +1,4 @@
-${CONSUL_ADDR_LIST} = "[]"
+${CONSUL_ADDR_LIST} = '["10.0.2.21","10.0.2.22","10.0.2.23"]'
 ${CONSUL_SERVICE_USER_NAME} = "${env:serviceUser}"
 ${CONSUL_SERVICE_USER_PASS} = "${env:servicePass}"
 ${NOMAD_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
@@ -6,11 +6,11 @@ ${NOMAD_SERVICE_USER_PASS} = ${CONSUL_SERVICE_USER_PASS}
 ${VAULT_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
 ${VAULT_SERVICE_USER_PASS} = ${CONSUL_SERVICE_USER_PASS}
 
-${NOMAD_VERSION} = "0.8.5"
+${NOMAD_VERSION} = "0.8.6"
 ${CONSUL_VERSION} = "1.2.3"
 ${VAULT_VERSION} = "0.11.1"
 
-${CHOCO_OPTIONS} = "-y --no-progress"
+${CHOCO_OPTIONS} = "-y","--no-progress"
 
 $global:IP = $null     #  This gets set once the function exists. Just here for documentation sake.
 
@@ -147,8 +147,8 @@ function Generate-ConsulConfig {
     `"data_dir`": `"C:\\Consul\\data`",
     `"log_level`": `"DEBUG`",
     `"node_name`": "${env:computername}`",
-    `"watches`": [ ]
-    `"bootstrap_expect`": 1
+    `"watches`": [ ],
+    `"bootstrap_expect`": 1,
     `"server`": true
   }
 "@ | Out-File -Encoding ASCII -FilePath C:\Consul\config\consul.json
@@ -169,8 +169,9 @@ function Generate-ConsulLabConfig {
 "@ | Out-File -Encoding ASCII -FilePath C:\Consul\lab\config\consul.json
 }
 
-function CreateHashicorpService (${product},${installPath}, ${serviceUser}, ${servicePass}, ${serviceStartup}) {
-  ${productTitle}=${product}
+function CreateHashicorpService (${product}, ${installPath}, ${serviceUser}, ${servicePass}, ${serviceStartup}) {
+  TextInfo = (Get-Culture).TextInfo
+  ${productTitle}=$TextInfo.ToTitleCase(${product})
   nssm install ${productTitle} ${installPath}\bin\${product}.exe agent --config-dir="${installPath}\config"
   nssm set ${productTitle} AppDirectory ${installPath}
   nssm set ${productTitle} Description Hashicorp ${productTitle}
@@ -185,7 +186,7 @@ function Install-consul {
   Write-Host "Installing Consul..." -ForegroundColor Green
   InstallHashicorpProduct "consul" "${CONSUL_VERSION}" "C:\Consul"
   Write-Host "   Creating Consul Service..." -ForegroundColor Green
-  CreateHashicorpService  "consul" "C:\Consul" ${CONSUL_SERVICE_USER_NAME} ${CONSUL_SERVICE_USER_PASS} "SERVICE_AUTO_START"
+  CreateHashicorpService  "consul" "C:\Consul" "${CONSUL_SERVICE_USER_NAME}" "${CONSUL_SERVICE_USER_PASS}" "SERVICE_AUTO_START"
   Write-Host "   Creating Consul Lab Service..." -ForegroundColor Green
   CreateProductDirectory("C:\Consul\lab")
   nssm install Consul-Lab C:\Consul\bin\consul.exe agent --config="C:\\Consul\\lab\\config"
@@ -237,7 +238,7 @@ function Install-nomad {
   Write-Host "Installing Nomad..." -ForegroundColor Green
   InstallHashicorpProduct "nomad" "${NOMAD_VERSION}" "C:\Nomad"
   Write-Host "   Creating Nomad Service..." -ForegroundColor Green
-  CreateHashicorpService  "nomad" "C:\Nomad" ${NOMAD_SERVICE_USER_NAME} ${NOMAD_SERVICE_USER_PASS} "SERVICE_AUTO_START"
+  CreateHashicorpService  "nomad" "C:\Nomad" "${NOMAD_SERVICE_USER_NAME}" "${NOMAD_SERVICE_USER_PASS}" "SERVICE_AUTO_START"
   Write-Host "   Creating Nomad Lab Service..." -ForegroundColor Green
   CreateProductDirectory "C:\Nomad\lab"
   nssm install Nomad-Lab C:\Nomad\bin\nomad.exe agent --config="C:\\Nomad\\lab\\config"
@@ -275,7 +276,7 @@ function Install-vault {
   Write-Host "Installing Vault..." -ForegroundColor Green
   InstallHashicorpProduct "vault" "${VAULT_VERSION}" "C:\Vault"
   Write-Host "   Creating Vault Service..." -ForegroundColor Green
-  CreateHashicorpService  "vault" "C:\Vault" ${VAULT_SERVICE_USER_NAME} ${VAULT_SERVICE_USER_PASS} "SERVICE_AUTO_START"
+  CreateHashicorpService  "vault" "C:\Vault" "${VAULT_SERVICE_USER_NAME}" "${VAULT_SERVICE_USER_PASS}" "SERVICE_AUTO_START"
   Write-Host "   Adding Vault to Path..." -ForegroundColor Green
   $path = [System.Environment]::GetEnvironmentVariable("Path", "User")
   [System.Environment]::SetEnvironmentVariable("Path", $path + "C:\Vault\bin;", "User")
@@ -292,6 +293,8 @@ function Install-git { choco install ${CHOCO_OPTIONS} git }
 function Install-golang { choco install ${CHOCO_OPTIONS} golang }
 
 function Install-coreutils { choco install ${CHOCO_OPTIONS} gnuwin32-coreutils.install }
+function Install-gnumake { choco install ${CHOCO_OPTIONS} gnuwin32-make.portable }
+function Install-gnugrep { choco install ${CHOCO_OPTIONS} gnuwin32-grep.install }
 
 function Install-googlechrome { choco install ${CHOCO_OPTIONS} googlechrome }
 
@@ -307,9 +310,16 @@ function Install-docker {
 }
 
 function Install-devTools {
+  Install-vim
   Install-git
+  Install-gnumake
   Install-coreutils
   Install-golang 
+}
+
+function Install-desktopTools {
+  Install-sublime
+  Install-googlechrome
 }
 
 clear
@@ -328,4 +338,5 @@ Install-vault
 Generate-VaultConfig
 Install-chocolatey
 Install-devTools
+Install-desktopTools
 Install-docker
