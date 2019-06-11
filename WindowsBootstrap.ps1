@@ -348,23 +348,19 @@ function Install-desktopTools {
 
 clear
 
-if ($true) {
-  Install-nomad
-} else {
-  Disable-InternetExplorerESC
-  Enable-RemoteDesktop 
-  Set-VirtualTerminalLevel
-  Install-wget
-  Install-nssm
-  Install-consul
-  Generate-ConsulConfig
-  Install-nomad
-  Generate-NomadConfig
-  Generate-NomadLabConfig
-  Install-vault
-  Generate-VaultConfig
-  Install-chocolatey
-  Install-devTools
-  Install-desktopTools
-  Install-docker
-}
+Disable-InternetExplorerESC
+Enable-RemoteDesktop 
+Set-VirtualTerminalLevel
+Install-wget
+Install-nssm
+Install-consul
+Generate-ConsulConfig
+Install-nomad
+Generate-NomadConfig
+Generate-NomadLabConfig
+Install-vault
+Generate-VaultConfig
+Install-chocolatey
+Install-devTools
+Install-desktopTools
+Install-docker
