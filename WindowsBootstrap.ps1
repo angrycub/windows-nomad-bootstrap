@@ -1,6 +1,25 @@
 ${CONSUL_ADDR_LIST} = '["10.0.2.21","10.0.2.22","10.0.2.23"]'
-${CONSUL_SERVICE_USER_NAME} = "${env:serviceUser}"
-${CONSUL_SERVICE_USER_PASS} = "${env:servicePass}"
+
+$serviceUser = "${env:serviceUser}"
+$servicePass = "${env:servicePass}"
+
+If ($serviceUser -eq "" -or $servicePass -eq "") {
+  Write-Host -ForegroundColor Yellow "serviceUser and/or servicePass environment variables missing"
+  Write-Host "Use the following PowerShell syntax to set environment variables:"
+  Write-Host '$env:serviceUser = "Administrator"'
+  
+  If ($serviceUser -eq "") {
+    $credential = Get-Credential -Message "Enter service account credentials"
+  } else {
+    $credential = Get-Credential -Message "Enter service account credentials" -UserName $serviceUser
+  }
+
+  $serviceUser = $credential.UserName
+  $servicePass = $credential.GetNetworkCredential().Password
+}
+
+${CONSUL_SERVICE_USER_NAME} = $serviceUser
+${CONSUL_SERVICE_USER_PASS} = $servicePass
 ${NOMAD_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
 ${NOMAD_SERVICE_USER_PASS} = ${CONSUL_SERVICE_USER_PASS}
 ${VAULT_SERVICE_USER_NAME} = ${CONSUL_SERVICE_USER_NAME}
