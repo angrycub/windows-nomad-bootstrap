@@ -189,9 +189,14 @@ function Generate-ConsulLabConfig {
 }
 
 function CreateHashicorpService (${product}, ${installPath}, ${serviceUser}, ${servicePass}, ${serviceStartup}) {
-  TextInfo = (Get-Culture).TextInfo
+  $TextInfo = (Get-Culture).TextInfo
   ${productTitle}=$TextInfo.ToTitleCase(${product})
-  nssm install ${productTitle} ${installPath}\bin\${product}.exe agent --config-dir="${installPath}\config"
+  If ($product -eq "nomad") {
+    $configFlag = "config"
+  } else {
+    $configFlag = "config-dir"
+  }
+  nssm install ${productTitle} ${installPath}\bin\${product}.exe agent --${configFlag}="${installPath}\config"
   nssm set ${productTitle} AppDirectory ${installPath}
   nssm set ${productTitle} Description Hashicorp ${productTitle}
   nssm set ${productTitle} Start ${serviceStartup}
@@ -343,19 +348,23 @@ function Install-desktopTools {
 
 clear
 
-Disable-InternetExplorerESC
-Enable-RemoteDesktop 
-Set-VirtualTerminalLevel
-Install-wget
-Install-nssm
-Install-consul
-Generate-ConsulConfig
-Install-nomad
-Generate-NomadConfig
-Generate-NomadLabConfig
-Install-vault
-Generate-VaultConfig
-Install-chocolatey
-Install-devTools
-Install-desktopTools
-Install-docker
+if ($true) {
+  Install-nomad
+} else {
+  Disable-InternetExplorerESC
+  Enable-RemoteDesktop 
+  Set-VirtualTerminalLevel
+  Install-wget
+  Install-nssm
+  Install-consul
+  Generate-ConsulConfig
+  Install-nomad
+  Generate-NomadConfig
+  Generate-NomadLabConfig
+  Install-vault
+  Generate-VaultConfig
+  Install-chocolatey
+  Install-devTools
+  Install-desktopTools
+  Install-docker
+}
