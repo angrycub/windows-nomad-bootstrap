@@ -1,0 +1,7 @@
+# `name` is used to override the default name of hashistack.  This
+# allows for more than one environment per account
+name = "ldls_nomad"
+
+# `key_name` is the name of the AWS SSH keys to be loaded on the box
+# at provisioning
+key_name = "your_key"
