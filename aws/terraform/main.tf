@@ -24,17 +24,6 @@ resource "aws_instance" "nomad_server" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-  connection {
-    type = "winrm"
-    port = 5986
-    password = "${rsadecrypt(self.password_data, file("${var.ssh_key}"))}"
-    https = true
-    insecure = true
-  }
-  provisioner "file" {
-    source = "../scripts/setup.ps1"
-    destination = "C:/"
-  }
 }
 
 resource "aws_instance" "nomad_client" {
@@ -57,17 +46,5 @@ resource "aws_instance" "nomad_client" {
     volume_type           = "gp2"
    volume_size           = "50"
     delete_on_termination = "true"
-  }
-  connection {
-    type = "winrm"
-    port = 5986
-    password = "${rsadecrypt(self.password_data, file("${var.ssh_key}"))}"
-    https = true
-    insecure = true
-    timeout = "15m"
-  }
-  provisioner "file" {
-    source = "../scripts/setup.ps1"
-    destination = "C:/"
-  }    
+  }   
 }
