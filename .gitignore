@@ -6,3 +6,4 @@
 *.tfvars
 .terraform.tfstate.lock.info
 ./terraform/**
+test/**
