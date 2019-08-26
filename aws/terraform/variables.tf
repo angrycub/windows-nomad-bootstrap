@@ -25,5 +25,4 @@ variable "client_count" {
 
 variable "ami" {}
 
-variable "ssh_key" {}
 

@@ -5,3 +5,6 @@ name = "ldls_nomad"
 # `key_name` is the name of the AWS SSH keys to be loaded on the box
 # at provisioning
 key_name = "your_key"
+
+# HashiCorp Account AMI
+ami = "ami-027877f224b392508"
