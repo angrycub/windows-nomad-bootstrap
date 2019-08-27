@@ -17,13 +17,6 @@ resource "aws_instance" "nomad_server" {
   root_block_device = {
     volume_size = "100"
   }
-
-  ebs_block_device = {
-    device_name           = "/dev/xvdd"
-    volume_type           = "gp2"
-    volume_size           = "50"
-    delete_on_termination = "true"
-  }
 }
 
 resource "aws_instance" "nomad_client" {
@@ -39,12 +32,5 @@ resource "aws_instance" "nomad_client" {
 
   root_block_device = {
     volume_size = "100"
-  }
-
-  ebs_block_device = {
-    device_name           = "/dev/xvdd"
-    volume_type           = "gp2"
-   volume_size           = "50"
-    delete_on_termination = "true"
   }   
 }

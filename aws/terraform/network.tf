@@ -7,7 +7,7 @@ resource "aws_security_group" "primary" {
   vpc_id = "${data.aws_vpc.default.id}"
 
   tags {
-    Name = "${var.name}"
+    Name = "${var.name}-windows-nomad"
   }
 
   ingress {
