@@ -21,7 +21,7 @@ resource "aws_instance" "nomad_server" {
 
 resource "aws_instance" "nomad_client" {
   ami             = "${var.ami}"
-  instance_type   = "t2.medium"
+  instance_type   = "t2.large"
   key_name        = "${var.key_name}"
   vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.client_count}"
